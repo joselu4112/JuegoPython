@@ -6,21 +6,35 @@ from resources.Colors import *
 
 
 class Enemigo1:
+    """Clase enemigo, encargada de todas las interacciones con este y guardar sus valores aleatorios."""
+
     def __init__(self, targetx, targety, salud,danio, x, y):
+        #Aqui inicializo nulas las variables que se calculan a partir de otras en metodos más adelante.
         self.distancia=None
         self.vector_x=None
         self.vector_y=None
 
+        #Posicion inicial
         self.posx=x
         self.posy=y
-        self.salud = salud
-        self.puntos=10
-        self.danio=danio
-        self.saludInicial=salud
+
+        self.salud = salud #Vida en tiempo real
+        self.danio=danio    #Daño
+        self.saludInicial=salud #Vida inicial para pintar la barra de vida
+        self.velocidad=1 #Velocidad de movimiento para las animaciones
+
+        #Siguiente posicion a la que se debe mover el enemigo,
+        # principalmente el movimiento una vez ha muerto y se genera un nuevo enemigo
         self.targetx=targetx
         self.targety=targety
-        self.velocidad=1
 
+        #Puntos que da este enemigo
+        self.puntos=salud+danio*40
+        #Dado que la generacion de daño es bastante mas pequeña en escala a la vida, para que la cantidad de puntos que dan
+        #los enemigos con mas daño se multiplica por 40 para igualarlo a los que tienen más vida.
+
+        #Diferntes enemigos que se presentan al usuario según los parametros aleatorios que se han generado.
+        #Foto del enemigo base
         self.ruta="resources/enemigo.png" #Enemigo base
 
         if(self.danio>=10):#Enemigo con mas daño
@@ -33,31 +47,37 @@ class Enemigo1:
             self.ruta = "resources/TopVida.jpg"
         if (self.danio == 20):#Enemigo con top daño
             self.ruta = "resources/TopDanio.jpg"
-        if(self.danio==20 and self.salud==800):#Enemigo TopTop
+        if(self.danio==20 and self.salud==800):#Enemigo Top to-do
             self.ruta = "resources/Topjiafei.jpg"
 
-        self.imagen = pygame.image.load(self.ruta)
+        self.imagen = pygame.image.load(self.ruta)#Cargar imagen seleccionada
         self.imagen = pygame.transform.scale(self.imagen, (80, 80))  # Redimensionar
-        self.rect = self.imagen.get_rect(center=(self.posx, self.posy))
+        self.rect = self.imagen.get_rect(center=(self.posx, self.posy)) #Asignar el rect
 
 
     def setPosicionInicial(self,x,y):
+        """Metodo para seleccionar la posicion inicial del enemigo.
+        Se usa cuando muere un enemigo y quiero generar uno nuevo en la misma posicion para que este se mueva
+        con una animacion a la posicion aleatoria generada Target(targetx, targety) """
         #Distancia a 0 para calcularla despues
         self.distancia=0
-        #Nueva posicion de destino
+
+        #Nueva posicion Inicial
         self.posx = x
         self.rect.x = x
 
         self.posy = y
         self.rect.y = y
 
-        # Calculo de la distancia al punto de destino
+        # Calculo de la distancia al punto de destino segun esta nueva posicion inicial
         self.vector_x = self.targetx - self.posx
         self.vector_y = self.targety - self.posy
         self.distancia = math.sqrt(self.vector_x ** 2 + self.vector_y ** 2)
 
 
     def setTarget(self,targetx,targety):
+        """Metodo para seleccionar una nueva posicion a la que mover el enemigo"""
+        #Nuevo Target(targetx, targety)
         self.targetx=targetx
         self.targety=targety
 
@@ -70,37 +90,52 @@ class Enemigo1:
 
 
     def dibujar(self, superficie):
-            superficie.blit(self.imagen, self.rect)  # Dibujar la imagen del enemigo
-            self.dibujar_barra_vida(superficie)  # Dibujar la barra de vida
+        """Metodo para dibujar al enemigo y su barra de vida"""
+        superficie.blit(self.imagen, self.rect)  # Dibujar la imagen del enemigo
+        self.dibujar_barra_vida(superficie)  # Dibujar la barra de vida
 
     def dibujar_barra_vida(self, superficie):
         # Barra de vida
         vida_ancho = 50  # Ancho de la barra de vida
         vida_alto = 5    # Alto de la barra de vida
-        porcentaje_vida = self.salud / self.saludInicial  # Suponiendo que la salud máxima es 100
-        pygame.draw.rect(superficie, RED, (self.rect.x, self.rect.y - 10, vida_ancho, vida_alto))  # Fondo
-        pygame.draw.rect(superficie, GREEN, (self.rect.x, self.rect.y - 10, vida_ancho * porcentaje_vida, vida_alto))  # Vida actual
+
+        # Calculo del porcentaje de vida para ir porcentualmente reduciendo
+        # el tamaño de la barra verde, de forma que la vida que falta se muestra en rojo
+        porcentaje_vida = self.salud / self.saludInicial
+
+        # Fondo rojo
+        pygame.draw.rect(superficie, RED, (self.rect.x, self.rect.y - 10, vida_ancho, vida_alto))
+        # Vida actual
+        pygame.draw.rect(superficie, GREEN, (self.rect.x, self.rect.y - 10, vida_ancho * porcentaje_vida, vida_alto))
 
     def recibir_dano(self, dano):
+        """Metodo para que el enemigo reciva daño"""
         self.salud -= dano
         if self.salud < 0:
             self.salud = 0  # No permitir que la salud sea negativa
 
 
     def animar(self):
-        if self.distancia != 0:
+        """Metodo para calcular el vector normalizado de direccion
+        hacia el Target(targerx,targety) desde la posicion inicial(x,y)"""
+
+        if self.distancia != 0:#Si no se encuentra ya en la posicion de destino (Que la distancia a Target sea 0)
             #Calculo el vector normalizado
             self.dx_normalizado = self.vector_x / self.distancia
             self.dy_normalizado = self.vector_y / self.distancia
 
     def mover(self):
-            #Calculo el movimiento como el vector normalizado por la velocidad
-            self.posx += self.dx_normalizado * self.velocidad
-            self.posy += self.dy_normalizado * self.velocidad
-            #Actualizo su rect para que se dibuje en la posicion deseada
-            self.rect.x = self.posx
-            self.rect.y = self.posy
-            # Calculo de la nueva distancia al punto de destino
-            self.vector_x = self.targetx - self.posx
-            self.vector_y = self.targety - self.posy
-            self.distancia = math.sqrt(self.vector_x ** 2 + self.vector_y ** 2)
+        """Metodo que calcula las distancias y vectores necesarios
+        para definir el movimiento desde la Posicion Inicial al Target"""
+        #Calculo el movimiento como el vector normalizado por la velocidad
+        self.posx += self.dx_normalizado * self.velocidad
+        self.posy += self.dy_normalizado * self.velocidad
+
+        #Actualizo su rect para que se dibuje en la posicion deseada
+        self.rect.x = self.posx
+        self.rect.y = self.posy
+
+        # Calculo la nueva distancia al punto de destino
+        self.vector_x = self.targetx - self.posx
+        self.vector_y = self.targety - self.posy
+        self.distancia = math.sqrt(self.vector_x ** 2 + self.vector_y ** 2)
